@@ -26,7 +26,10 @@ from functools import wraps
 from flask import Flask, request, redirect, url_for, session, render_template
 
 import config
-from sheets_io import baca_semua, tambah_pendaftar, sheet_url, KonfigurasiBelumLengkap, KOLOM
+from sheets_io import (
+    baca_semua, tambah_pendaftar, sheet_url, KonfigurasiBelumLengkap, KOLOM,
+    baca_semua_kepuasan, tambah_kepuasan, KOLOM_KEPUASAN,
+)
 
 PERSYARATAN_TMT = {
     "WI Standard 180 JP": "Minimal D3, pengalaman sebagai welder minimal 2 tahun",
@@ -99,6 +102,53 @@ def form():
 
     return render_template("form.html", pesan=pesan, berhasil=berhasil, nilai=nilai,
                            opsi_tmt=OPSI_TMT, syarat_tmt=PERSYARATAN_TMT)
+
+
+@app.route("/kepuasan", methods=["GET", "POST"])
+def kepuasan():
+    pesan = ""
+    berhasil = False
+    nilai = {}
+
+    if request.method == "POST":
+        nilai = {
+            "nama": request.form.get("nama", "").strip(),
+            "no_hp": request.form.get("no_hp", "").strip(),
+            "pelatihan": request.form.get("pelatihan", "").strip(),
+            "kepuasan_keseluruhan": request.form.get("kepuasan_keseluruhan", "").strip(),
+            "kualitas_materi": request.form.get("kualitas_materi", "").strip(),
+            "kualitas_instruktur": request.form.get("kualitas_instruktur", "").strip(),
+            "fasilitas": request.form.get("fasilitas", "").strip(),
+            "rekomendasi": request.form.get("rekomendasi", "").strip(),
+            "saran": request.form.get("saran", "").strip(),
+        }
+        wajib = ["kepuasan_keseluruhan", "kualitas_materi", "kualitas_instruktur", "fasilitas"]
+        if any(not nilai[k] for k in wajib):
+            pesan = "Semua penilaian (1-5) wajib diisi."
+        else:
+            try:
+                tambah_kepuasan(nilai)
+                pesan = "Terima kasih atas penilaian Anda!"
+                berhasil = True
+                nilai = {}
+            except KonfigurasiBelumLengkap as e:
+                pesan = f"Belum bisa menyimpan data - setup Google Sheets belum selesai: {e}"
+            except Exception:
+                app.logger.exception("Gagal menyimpan survey kepuasan")
+                pesan = "Gagal menyimpan data karena gangguan sementara - silakan coba lagi."
+
+    return render_template("kepuasan.html", pesan=pesan, berhasil=berhasil, nilai=nilai,
+                           opsi_pelatihan=OPSI_TMT)
+
+
+@app.route("/admin/kepuasan")
+@perlu_login
+def admin_kepuasan():
+    try:
+        rows = baca_semua_kepuasan()
+    except KonfigurasiBelumLengkap as e:
+        return f"Setup Google Sheets belum selesai: {e}", 500
+    return render_template("admin.html", rows=rows, kolom=KOLOM_KEPUASAN, sheet_url=sheet_url())
 
 
 @app.route("/login", methods=["GET", "POST"])

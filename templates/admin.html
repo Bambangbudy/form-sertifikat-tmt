@@ -2,7 +2,8 @@
 {% block title %}Admin - Pendaftaran Sertifikat{% endblock %}
 {% block main_class %}wrap-lebar{% endblock %}
 {% block nav %}
-  <a href="{{ url_for('form') }}">Form Pendaftaran</a>
+  <a href="{{ url_for('admin') }}">Data Pendaftaran</a>
+  <a href="{{ url_for('admin_kepuasan') }}">Data Kepuasan</a>
   <a href="{{ sheet_url }}" target="_blank" rel="noopener">Buka Google Sheet</a>
   <a href="{{ url_for('logout') }}">Logout</a>
 {% endblock %}

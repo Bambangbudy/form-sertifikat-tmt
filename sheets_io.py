@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Baca/tulis data pendaftaran ke Google Sheets (menggantikan excel_io.py
-yang berbasis file lokal). Satu baris = satu orang UNTUK SATU skema TMT.
+"""Baca/tulis ke Google Sheets. Satu spreadsheet (config.GOOGLE_SHEET_ID),
+beberapa tab/worksheet di dalamnya - satu tab per "jenis form" (Pendaftaran
+TMT, Kepuasan Pelanggan, dst). Semua form berbagi service account & sheet
+yang sama, tidak perlu setup/share ulang tiap tambah form baru.
 
 Butuh:
 - File kredensial service account (lihat config.GOOGLE_CREDENTIALS_FILE)
@@ -41,19 +43,20 @@ def _dengan_retry(fn, percobaan=4, jeda=1.5):
                 raise
             time.sleep(jeda)
 
+
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
 ]
-WORKSHEET_NAME = "Pendaftaran"
 
+# --- Tab "Pendaftaran" (form sertifikat/TMT) ---
+WORKSHEET_NAME = "Pendaftaran"
 KOLOM = [
     "No", "Nama", "NIK", "Tempat Lahir", "Tanggal Lahir", "Pendidikan Terakhir",
     "Jurusan", "Angkatan", "Pekerjaan", "No. HP", "Email",
     "Pelatihan BLK yang Pernah Diikuti", "TMT / Skema yang Diikuti",
     "Waktu Daftar", "Keterangan",
 ]
-
 _KEY_KE_LABEL = {
     "nama": "Nama", "nik": "NIK", "tempat_lahir": "Tempat Lahir",
     "tanggal_lahir": "Tanggal Lahir", "pendidikan": "Pendidikan Terakhir",
@@ -61,6 +64,20 @@ _KEY_KE_LABEL = {
     "no_hp": "No. HP", "email": "Email",
     "pelatihan_blk": "Pelatihan BLK yang Pernah Diikuti",
     "tmt": "TMT / Skema yang Diikuti", "keterangan": "Keterangan",
+}
+
+# --- Tab "Kepuasan Pelanggan" (survey CSAT) ---
+WORKSHEET_KEPUASAN = "Kepuasan Pelanggan"
+KOLOM_KEPUASAN = [
+    "No", "Nama", "No. HP", "Pelatihan yang Diikuti",
+    "Kepuasan Keseluruhan", "Kualitas Materi", "Kualitas Instruktur", "Fasilitas",
+    "Akan Merekomendasikan", "Saran & Masukan", "Waktu Submit",
+]
+_KEY_KE_LABEL_KEPUASAN = {
+    "nama": "Nama", "no_hp": "No. HP", "pelatihan": "Pelatihan yang Diikuti",
+    "kepuasan_keseluruhan": "Kepuasan Keseluruhan", "kualitas_materi": "Kualitas Materi",
+    "kualitas_instruktur": "Kualitas Instruktur", "fasilitas": "Fasilitas",
+    "rekomendasi": "Akan Merekomendasikan", "saran": "Saran & Masukan",
 }
 
 
@@ -87,7 +104,7 @@ def _client_gspread():
     return gspread.authorize(creds)
 
 
-def _worksheet():
+def _worksheet(nama_tab, kolom):
     if not config.GOOGLE_SHEET_ID:
         raise KonfigurasiBelumLengkap("config.GOOGLE_SHEET_ID masih kosong. Isi dulu ID Google Sheet-nya.")
     gc = _client_gspread()
@@ -99,10 +116,10 @@ def _worksheet():
             f"(akses Editor) ke email service account. Detail: {e}"
         )
     try:
-        return sh.worksheet(WORKSHEET_NAME)
+        return sh.worksheet(nama_tab)
     except gspread.exceptions.WorksheetNotFound:
-        ws = sh.add_worksheet(title=WORKSHEET_NAME, rows=2000, cols=len(KOLOM))
-        ws.append_row(KOLOM, value_input_option="RAW")
+        ws = sh.add_worksheet(title=nama_tab, rows=2000, cols=len(kolom))
+        ws.append_row(kolom, value_input_option="RAW")
         return ws
 
 
@@ -110,31 +127,48 @@ def sheet_url():
     return f"https://docs.google.com/spreadsheets/d/{config.GOOGLE_SHEET_ID}/edit"
 
 
-def _baca_semua_sekali():
+def _baca_semua_generik(nama_tab, kolom):
     with _lock:
-        ws = _worksheet()
+        ws = _worksheet(nama_tab, kolom)
         records = ws.get_all_records()
     return [r for r in records if str(r.get("Nama", "")).strip()]
 
 
-def baca_semua():
-    return _dengan_retry(_baca_semua_sekali)
-
-
-def _tambah_pendaftar_sekali(data):
+def _tambah_baris_generik(nama_tab, kolom, key_ke_label, data, kolom_waktu):
     with _lock:
-        ws = _worksheet()
+        ws = _worksheet(nama_tab, kolom)
         header = ws.row_values(1)
         jumlah_baris_data = len(ws.get_all_values()) - 1
 
-        nilai = {"No": jumlah_baris_data + 1, "Waktu Daftar": datetime.now().strftime("%Y-%m-%d %H:%M")}
-        for key, label in _KEY_KE_LABEL.items():
+        nilai = {"No": jumlah_baris_data + 1}
+        if kolom_waktu:
+            nilai[kolom_waktu] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        for key, label in key_ke_label.items():
             nilai[label] = data.get(key, "")
 
         baris = [str(nilai.get(label, "")) for label in header]
         ws.append_row(baris, value_input_option="RAW")
 
 
+# --- API publik: Pendaftaran TMT (tidak berubah, dipakai app.py yang sudah ada) ---
+
+def baca_semua():
+    return _dengan_retry(lambda: _baca_semua_generik(WORKSHEET_NAME, KOLOM))
+
+
 def tambah_pendaftar(data):
     """data: dict dengan key dari _KEY_KE_LABEL (satu nilai 'tmt' per panggilan)."""
-    return _dengan_retry(lambda: _tambah_pendaftar_sekali(data))
+    return _dengan_retry(lambda: _tambah_baris_generik(
+        WORKSHEET_NAME, KOLOM, _KEY_KE_LABEL, data, "Waktu Daftar"))
+
+
+# --- API publik: Kepuasan Pelanggan ---
+
+def baca_semua_kepuasan():
+    return _dengan_retry(lambda: _baca_semua_generik(WORKSHEET_KEPUASAN, KOLOM_KEPUASAN))
+
+
+def tambah_kepuasan(data):
+    """data: dict dengan key dari _KEY_KE_LABEL_KEPUASAN."""
+    return _dengan_retry(lambda: _tambah_baris_generik(
+        WORKSHEET_KEPUASAN, KOLOM_KEPUASAN, _KEY_KE_LABEL_KEPUASAN, data, "Waktu Submit"))

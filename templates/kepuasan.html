@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Survey Kepuasan Pelanggan{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-top:0;">Survey Kepuasan Pelanggan</h2>
+  <p class="hint">Masukan Anda membantu kami meningkatkan kualitas pelatihan.</p>
+
+  {% if pesan %}<div class="pesan {{ 'ok' if berhasil else 'error' }}">{{ pesan }}</div>{% endif %}
+
+  <form method="post">
+    <label for="nama">Nama</label>
+    <input type="text" name="nama" id="nama" value="{{ nilai.nama or '' }}">
+
+    <label for="no_hp">No. HP</label>
+    <input type="tel" name="no_hp" id="no_hp" value="{{ nilai.no_hp or '' }}" placeholder="08xxxxxxxxxx">
+
+    <label for="pelatihan">Pelatihan yang Diikuti</label>
+    <select name="pelatihan" id="pelatihan">
+      <option value="">-- pilih --</option>
+      {% for opsi in opsi_pelatihan %}
+      <option value="{{ opsi }}" {{ "selected" if nilai.pelatihan == opsi else "" }}>{{ opsi }}</option>
+      {% endfor %}
+    </select>
+
+    <fieldset>
+      <legend>Penilaian (1 = Sangat Tidak Puas, 5 = Sangat Puas) *</legend>
+
+      <label for="kepuasan_keseluruhan">Kepuasan Keseluruhan</label>
+      <select name="kepuasan_keseluruhan" id="kepuasan_keseluruhan" required>
+        <option value="">-- pilih --</option>
+        {% for n in [5,4,3,2,1] %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+      </select>
+
+      <label for="kualitas_materi">Kualitas Materi</label>
+      <select name="kualitas_materi" id="kualitas_materi" required>
+        <option value="">-- pilih --</option>
+        {% for n in [5,4,3,2,1] %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+      </select>
+
+      <label for="kualitas_instruktur">Kualitas Instruktur</label>
+      <select name="kualitas_instruktur" id="kualitas_instruktur" required>
+        <option value="">-- pilih --</option>
+        {% for n in [5,4,3,2,1] %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+      </select>
+
+      <label for="fasilitas">Fasilitas</label>
+      <select name="fasilitas" id="fasilitas" required>
+        <option value="">-- pilih --</option>
+        {% for n in [5,4,3,2,1] %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+      </select>
+    </fieldset>
+
+    <label for="rekomendasi">Apakah Anda akan merekomendasikan pelatihan ini ke orang lain?</label>
+    <select name="rekomendasi" id="rekomendasi">
+      <option value="Ya">Ya</option>
+      <option value="Mungkin">Mungkin</option>
+      <option value="Tidak">Tidak</option>
+    </select>
+
+    <label for="saran">Saran &amp; Masukan</label>
+    <input type="text" name="saran" id="saran" value="{{ nilai.saran or '' }}"
+           placeholder="Opsional - tulis kritik/saran Anda">
+
+    <button class="btn" type="submit">Kirim Penilaian</button>
+  </form>
+</div>
+{% endblock %}
