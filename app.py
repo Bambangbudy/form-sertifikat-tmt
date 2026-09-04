@@ -36,6 +36,7 @@ PERSYARATAN_TMT = {
     "Scaffolder": "Minimal SLTA, minimal 2 tahun di bidang scaffolder",
     "SIO Crane": "Minimal SLTA, minimal 1 tahun di bidang crane",
     "SIO Forklift": "Minimal SLTA, minimal 1 tahun di bidang forklift",
+    "Expert": "Minimal S1, pengalaman minimal 5 tahun di bidang terkait",
 }
 OPSI_TMT = list(PERSYARATAN_TMT.keys())
 
