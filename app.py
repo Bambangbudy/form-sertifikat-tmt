@@ -92,6 +92,10 @@ def form():
                 nilai = {}
             except KonfigurasiBelumLengkap as e:
                 pesan = f"Belum bisa menyimpan data - setup Google Sheets belum selesai: {e}"
+            except Exception as e:
+                # DEBUG SEMENTARA - hapus setelah bug ketemu.
+                import traceback
+                pesan = f"DEBUG {type(e).__name__}: {e} || {traceback.format_exc()[-800:]}"
 
     return render_template("form.html", pesan=pesan, berhasil=berhasil, nilai=nilai,
                            opsi_tmt=OPSI_TMT, syarat_tmt=PERSYARATAN_TMT)
