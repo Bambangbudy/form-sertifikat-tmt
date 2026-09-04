@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Admin - Pendaftaran Sertifikat{% endblock %}
+{% block main_class %}wrap-lebar{% endblock %}
+{% block nav %}
+  <a href="{{ url_for('form') }}">Form Pendaftaran</a>
+  <a href="{{ sheet_url }}" target="_blank" rel="noopener">Buka Google Sheet</a>
+  <a href="{{ url_for('logout') }}">Logout</a>
+{% endblock %}
+{% block content %}
+<div class="toolstrip">
+  <input type="text" id="cari" placeholder="Cari nama, NIK, TMT/skema..." style="max-width:280px;">
+</div>
+<div class="count" id="jumlah">Menampilkan {{ rows|length }} baris</div>
+<div class="table-scroll">
+  <table class="admin" id="tabelAdmin">
+    <thead>
+      <tr>{% for k in kolom %}<th>{{ k }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>{% for k in kolom %}<td>{{ r.get(k, "") or "-" }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<script>
+const cari = document.getElementById('cari');
+const baris = Array.from(document.querySelectorAll('#tabelAdmin tbody tr'));
+const jumlahEl = document.getElementById('jumlah');
+cari.addEventListener('input', () => {
+  const q = cari.value.trim().toLowerCase();
+  let terlihat = 0;
+  baris.forEach(tr => {
+    const cocok = !q || tr.textContent.toLowerCase().includes(q);
+    tr.style.display = cocok ? '' : 'none';
+    if (cocok) terlihat++;
+  });
+  jumlahEl.textContent = `Menampilkan ${terlihat} dari ${baris.length} baris`;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Admin - Pendaftaran Sertifikat{% endblock %}
+{% block nav %}<a href="{{ url_for('form') }}">Form Pendaftaran</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-top:0;">Masuk sebagai Admin</h2>
+  <p class="hint">Halaman admin berisi data pribadi lengkap (NIK, tanggal lahir, kontak) semua pendaftar.</p>
+  {% if pesan %}<div class="pesan error">{{ pesan }}</div>{% endif %}
+  <form method="post">
+    <label for="password">Password Admin</label>
+    <input type="password" id="password" name="password" required autofocus>
+    <button class="btn" type="submit">Masuk</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Pendaftaran Sertifikat / TMT{% endblock %}</title>
+<style>
+  :root { --bg:#f5f7f8; --card:#fff; --text:#22282b; --muted:#667; --border:#dde3e6; --accent:#1f4e5f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',Tahoma,sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--accent); color:#fff; padding:18px 20px; display:flex; justify-content:space-between;
+    align-items:center; flex-wrap:wrap; gap:8px; }
+  header h1 { margin:0; font-size:1.1rem; }
+  header nav a { color:#fff; opacity:.9; text-decoration:none; margin-left:10px; font-size:.82rem;
+    border:1px solid rgba(255,255,255,.5); padding:5px 10px; border-radius:6px; }
+  header nav a:hover { opacity:1; background:rgba(255,255,255,.15); }
+  main.wrap { max-width:760px; margin:24px auto; padding:0 20px 60px; }
+  main.wrap-lebar { max-width:1400px; margin:24px auto; padding:0 20px 60px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:16px; }
+  label { display:block; font-size:.82rem; font-weight:600; margin:12px 0 4px; }
+  input[type=text], input[type=email], input[type=tel], input[type=password], input[type=date], select {
+    width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:6px; font-size:.9rem; }
+  .hint { color:var(--muted); font-size:.78rem; margin-top:3px; }
+  fieldset { border:1px solid var(--border); border-radius:8px; margin:14px 0; padding:12px 14px; }
+  legend { font-size:.85rem; font-weight:600; padding:0 6px; }
+  .btn { margin-top:18px; background:var(--accent); color:#fff; border:none; padding:11px 20px;
+    border-radius:6px; font-size:.9rem; cursor:pointer; }
+  .btn:hover { opacity:.92; }
+  .pesan { padding:10px 14px; border-radius:8px; margin-bottom:16px; font-size:.88rem; }
+  .pesan.ok { background:#e2f3e4; color:#1e6b2b; border:1px solid #bfe4c4; }
+  .pesan.error { background:#fdeceb; color:#a3271c; border:1px solid #f6c8c3; }
+  .checkbox-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:8px; margin-top:6px; }
+  .checkbox-grid label { display:flex; align-items:center; gap:8px; font-weight:400; margin:0;
+    border:1px solid var(--border); border-radius:6px; padding:8px 10px; }
+  .checkbox-grid input { width:auto; }
+  .checkbox-grid label.tmt-opsi { flex-direction:column; align-items:flex-start; gap:2px; }
+  .checkbox-grid label.tmt-opsi .syarat { font-size:.74rem; color:var(--muted); padding-left:22px; }
+  .toolstrip { display:flex; justify-content:flex-end; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .toolstrip a.btn2 { display:inline-block; background:#fff; border:1px solid var(--accent); color:var(--accent);
+    padding:8px 14px; border-radius:6px; text-decoration:none; font-size:.82rem; }
+  table.admin { border-collapse:collapse; width:100%; font-size:.78rem; background:#fff; }
+  table.admin th, table.admin td { border:1px solid var(--border); padding:5px 7px; text-align:left; white-space:nowrap; }
+  table.admin th { background:#e7edf0; position:sticky; top:0; }
+  .table-scroll { overflow:auto; max-height:75vh; border:1px solid var(--border); }
+  .count { color:var(--muted); font-size:.82rem; margin-bottom:10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>{% block header_title %}Pendaftaran Sertifikat / TMT{% endblock %}</h1>
+  <nav>{% block nav %}
+    <a href="{{ url_for('form') }}">Form Pendaftaran</a>
+  {% endblock %}</nav>
+</header>
+<main class="{% block main_class %}wrap{% endblock %}">
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

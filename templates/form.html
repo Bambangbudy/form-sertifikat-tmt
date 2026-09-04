@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Form Pendaftaran Sertifikat / TMT{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-top:0;">Nominatif Calon Peserta Pelatihan</h2>
+  <p class="hint">Data ini tersimpan langsung ke Google Sheets. Bisa pilih lebih dari satu TMT/skema pelatihan.</p>
+
+  {% if pesan %}<div class="pesan {{ 'ok' if berhasil else 'error' }}">{{ pesan }}</div>{% endif %}
+
+  <form method="post">
+    <fieldset>
+      <legend>Data Pribadi</legend>
+      <label for="nama">Nama Lengkap *</label>
+      <input type="text" name="nama" id="nama" value="{{ nilai.nama or '' }}" required>
+
+      <label for="nik">NIK</label>
+      <input type="text" name="nik" id="nik" value="{{ nilai.nik or '' }}"
+             inputmode="numeric" pattern="[0-9]{16}" maxlength="16"
+             title="NIK terdiri dari 16 digit angka">
+      <p class="hint">16 digit sesuai KTP.</p>
+
+      <label for="tempat_lahir">Tempat Lahir</label>
+      <input type="text" name="tempat_lahir" id="tempat_lahir" value="{{ nilai.tempat_lahir or '' }}">
+
+      <label for="tanggal_lahir">Tanggal Lahir</label>
+      <input type="date" name="tanggal_lahir" id="tanggal_lahir" value="{{ nilai.tanggal_lahir or '' }}">
+    </fieldset>
+
+    <fieldset>
+      <legend>Pendidikan</legend>
+      <label for="pendidikan">Pendidikan Terakhir</label>
+      <select name="pendidikan" id="pendidikan">
+        <option value="">-- pilih --</option>
+        {% for opsi in ["SD", "SMP", "SMA/SMK", "D3", "S1", "S2", "S3", "Lainnya"] %}
+        <option value="{{ opsi }}" {{ "selected" if nilai.pendidikan == opsi else "" }}>{{ opsi }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="jurusan">Jurusan</label>
+      <input type="text" name="jurusan" id="jurusan" value="{{ nilai.jurusan or '' }}">
+
+      <label for="angkatan">Angkatan</label>
+      <input type="text" name="angkatan" id="angkatan" value="{{ nilai.angkatan or '' }}"
+             placeholder="contoh: 2018">
+    </fieldset>
+
+    <fieldset>
+      <legend>Pekerjaan &amp; Kontak</legend>
+      <label for="pekerjaan">Pekerjaan</label>
+      <input type="text" name="pekerjaan" id="pekerjaan" value="{{ nilai.pekerjaan or '' }}">
+
+      <label for="no_hp">Nomor HP</label>
+      <input type="tel" name="no_hp" id="no_hp" value="{{ nilai.no_hp or '' }}" placeholder="08xxxxxxxxxx">
+
+      <label for="email">Alamat Email</label>
+      <input type="email" name="email" id="email" value="{{ nilai.email or '' }}">
+    </fieldset>
+
+    <fieldset>
+      <legend>Riwayat &amp; Pilihan Pelatihan</legend>
+      <label for="pelatihan_blk">Pelatihan yang Pernah Diikuti di BLK</label>
+      <input type="text" name="pelatihan_blk" id="pelatihan_blk" value="{{ nilai.pelatihan_blk or '' }}"
+             placeholder="Sebutkan nama pelatihannya, atau tulis &quot;belum pernah&quot;">
+
+      <label>TMT / Skema yang Diikuti * <span class="hint">(boleh pilih lebih dari satu - cek syarat minimalnya)</span></label>
+      <div class="checkbox-grid">
+        {% for opsi in opsi_tmt %}
+        <label class="tmt-opsi">
+          <span><input type="checkbox" name="tmt" value="{{ opsi }}"
+                {{ "checked" if opsi in (nilai.tmt or []) else "" }}> <strong>{{ opsi }}</strong></span>
+          {% if syarat_tmt.get(opsi) %}<span class="syarat">{{ syarat_tmt.get(opsi) }}</span>{% endif %}
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <button class="btn" type="submit">Simpan Pendaftaran</button>
+  </form>
+</div>
+{% endblock %}
