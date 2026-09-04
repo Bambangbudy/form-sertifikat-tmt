@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-# GANTI password ini sebelum dipakai beneran. Data di sini termasuk NIK
-# (nomor identitas kependudukan) - lebih sensitif dari data biasa, jadi
-# jangan pakai password bawaan kalau file ini bisa diakses orang lain.
-ADMIN_PASSWORD = "tmt-training-2026"
+import os
+
+# Password admin dibaca dari environment variable ADMIN_PASSWORD (diatur di
+# Render, bukan di file ini) supaya tidak ikut ter-commit ke repo publik.
+# "ganti-password-ini" cuma fallback untuk jalan di komputer lokal.
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "ganti-password-ini")
 
 # --- Google Sheets ---
 # ID Google Sheet tujuan (bagian di URL antara "/d/" dan "/edit"), contoh:
