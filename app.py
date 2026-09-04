@@ -101,6 +101,15 @@ def form():
                            opsi_tmt=OPSI_TMT, syarat_tmt=PERSYARATAN_TMT)
 
 
+@app.route("/debug-cred")
+def debug_cred():
+    # DEBUG SEMENTARA - hapus setelah bug ketemu. Tidak menampilkan isi file.
+    path = config.GOOGLE_CREDENTIALS_FILE
+    ada = os.path.exists(path)
+    ukuran = os.path.getsize(path) if ada else None
+    return {"path": path, "ada": ada, "ukuran_bytes": ukuran}
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     pesan = ""
