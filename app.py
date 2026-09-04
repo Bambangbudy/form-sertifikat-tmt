@@ -92,22 +92,12 @@ def form():
                 nilai = {}
             except KonfigurasiBelumLengkap as e:
                 pesan = f"Belum bisa menyimpan data - setup Google Sheets belum selesai: {e}"
-            except Exception as e:
-                # DEBUG SEMENTARA - hapus setelah bug ketemu.
-                import traceback
-                pesan = f"DEBUG {type(e).__name__}: {e} || {traceback.format_exc()[-800:]}"
+            except Exception:
+                app.logger.exception("Gagal menyimpan pendaftaran")
+                pesan = "Gagal menyimpan data karena gangguan sementara - silakan coba lagi."
 
     return render_template("form.html", pesan=pesan, berhasil=berhasil, nilai=nilai,
                            opsi_tmt=OPSI_TMT, syarat_tmt=PERSYARATAN_TMT)
-
-
-@app.route("/debug-cred")
-def debug_cred():
-    # DEBUG SEMENTARA - hapus setelah bug ketemu. Tidak menampilkan isi file.
-    path = config.GOOGLE_CREDENTIALS_FILE
-    ada = os.path.exists(path)
-    ukuran = os.path.getsize(path) if ada else None
-    return {"path": path, "ada": ada, "ukuran_bytes": ukuran}
 
 
 @app.route("/login", methods=["GET", "POST"])
