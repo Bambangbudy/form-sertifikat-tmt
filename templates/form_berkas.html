@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Pendaftaran TMT WI Basic{% endblock %}
-{% block header_title %}Pendaftaran TMT WI Basic{% endblock %}
+{% block title %}{{ judul_halaman }}{% endblock %}
+{% block header_title %}{{ judul_halaman }}{% endblock %}
 {% block nav %}{% endblock %}
 {% block content %}
 <div class="card">
-  <h2 style="margin-top:0;">Nominatif Calon Peserta Pelatihan - TMT WI Basic</h2>
-  <p class="hint">Isi data diri dan lampirkan dokumen yang diminta. Semua lampiran wajib.</p>
+  <h2 style="margin-top:0;">{{ judul_kartu }}</h2>
+  <p class="hint">{{ pengantar }}</p>
 
   {% if syarat %}
   <div class="pesan" style="background:#eef5f7;border:1px solid #cfe0e6;color:#1f4e5f;">
@@ -47,9 +47,9 @@
       <label for="jurusan">Jurusan</label>
       <input type="text" name="jurusan" id="jurusan" value="{{ nilai.jurusan or '' }}">
 
-      <label for="angkatan">Angkatan</label>
+      <label for="angkatan">Angkatan{% if angkatan_wajib %} *{% endif %}</label>
       <input type="text" name="angkatan" id="angkatan" value="{{ nilai.angkatan or '' }}"
-             placeholder="contoh: 2018">
+             placeholder="contoh: 2018"{% if angkatan_wajib %} required{% endif %}>
     </fieldset>
 
     <fieldset>
@@ -71,7 +71,7 @@
     <fieldset>
       <legend>Lampiran Dokumen *</legend>
       <p class="hint" style="margin-top:0;">Format PDF/JPG/PNG, maksimal 3 MB per berkas (foto dan scan dikecilkan
-        otomatis). Dokumen disimpan privat dan hanya dilihat pengelola pelatihan.</p>
+        otomatis). Dokumen disimpan privat dan hanya dilihat pengelola.</p>
       {% for field, label, ok in berkas %}
       <label for="{{ field }}">{{ label }} *</label>
       <input type="file" name="{{ field }}" id="{{ field }}"
@@ -80,7 +80,7 @@
       {% endfor %}
     </fieldset>
 
-    <button class="btn" type="submit">Kirim Pendaftaran</button>
+    <button class="btn" type="submit">{{ tombol }}</button>
   </form>
 </div>
 <script>

@@ -32,6 +32,7 @@ from sheets_io import (
     baca_semua, tambah_pendaftar, sheet_url, KonfigurasiBelumLengkap, KOLOM,
     baca_semua_kepuasan, tambah_kepuasan, KOLOM_KEPUASAN,
     baca_semua_wi_basic, tambah_wi_basic, KOLOM_WI_BASIC,
+    baca_semua_anggota, tambah_anggota, KOLOM_ANGGOTA,
 )
 
 PERSYARATAN_TMT = {
@@ -46,17 +47,46 @@ PERSYARATAN_TMT = {
 }
 OPSI_TMT = list(PERSYARATAN_TMT.keys())
 
-# Form khusus /wi-basic. Isi SYARAT_WI_BASIC (teks) kalau persyaratannya sudah ada;
-# kosong = kotak persyaratan tidak ditampilkan.
+# Isi SYARAT_WI_BASIC (teks) kalau persyaratan WI Basic sudah ada;
+# kosong = kotak persyaratan tidak ditampilkan di form /wi-basic.
 SYARAT_WI_BASIC = ""
 # (nama field, label di form & di nama file, ekstensi yang diizinkan) - semuanya wajib.
-BERKAS_WI_BASIC = [
+BERKAS_FORM = [
     ("ijazah", "Ijazah Terakhir", {"pdf", "jpg", "jpeg", "png"}),
     ("cv", "CV", {"pdf"}),
     ("sertifikat_blki", "Sertifikat BLKI", {"pdf", "jpg", "jpeg", "png"}),
     ("ktp", "KTP", {"pdf", "jpg", "jpeg", "png"}),
     ("pas_foto", "Pas Foto", {"jpg", "jpeg", "png"}),
 ]
+FIELD_TEKS_BERKAS = ("nama", "nik", "tempat_lahir", "tanggal_lahir", "pendidikan", "jurusan",
+                     "angkatan", "pekerjaan", "no_hp", "email", "pelatihan_blk")
+
+# Form data diri + lampiran dokumen. Satu entri per form; form baru = tambah entri di sini,
+# tab Google Sheet-nya di sheets_io.py, dan satu rute di bawah.
+FORM_BERKAS = {
+    "wi_basic": {
+        "judul_halaman": "Pendaftaran TMT WI Basic",
+        "judul_kartu": "Nominatif Calon Peserta Pelatihan - TMT WI Basic",
+        "pengantar": "Isi data diri dan lampirkan dokumen yang diminta. Semua lampiran wajib.",
+        "tombol": "Kirim Pendaftaran",
+        "awalan_berkas": "WI Basic",
+        "pesan_sukses": 'Terima kasih, "{nama}" berhasil didaftarkan untuk TMT WI Basic. Berkas Anda sudah kami terima.',
+        "syarat": SYARAT_WI_BASIC,
+        "angkatan_wajib": False,
+        "simpan": tambah_wi_basic,
+    },
+    "anggota": {
+        "judul_halaman": "Data Anggota",
+        "judul_kartu": "Pendataan Anggota",
+        "pengantar": "Isi data diri dan lampirkan dokumen yang diminta. Nama dan angkatan wajib diisi, semua lampiran wajib.",
+        "tombol": "Kirim Data Anggota",
+        "awalan_berkas": "Anggota",
+        "pesan_sukses": 'Terima kasih, "{nama}" sudah tercatat sebagai anggota. Berkas Anda sudah kami terima.',
+        "syarat": "",
+        "angkatan_wajib": True,
+        "simpan": tambah_anggota,
+    },
+}
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("TMT_SECRET_KEY", "ganti-kalau-mau-di-hosting-" + os.urandom(8).hex())
@@ -179,54 +209,65 @@ def _validasi_berkas(file_storage, label, diizinkan):
     return berkas_umum.periksa_isi(file_storage, label)
 
 
-@app.route("/wi-basic", methods=["GET", "POST"])
-def wi_basic():
+def _form_berkas(kunci):
+    """Logika bersama form data diri + 5 lampiran (lihat FORM_BERKAS)."""
+    k = FORM_BERKAS[kunci]
     pesan = ""
     berhasil = False
     nilai = {}
 
     if request.method == "POST":
-        nilai = {k: request.form.get(k, "").strip() for k in (
-            "nama", "nik", "tempat_lahir", "tanggal_lahir", "pendidikan", "jurusan",
-            "angkatan", "pekerjaan", "no_hp", "email", "pelatihan_blk",
-        )}
+        nilai = {f: request.form.get(f, "").strip() for f in FIELD_TEKS_BERKAS}
 
         if not nilai["nama"]:
             pesan = "Nama wajib diisi."
+        elif k["angkatan_wajib"] and not nilai["angkatan"]:
+            pesan = "Angkatan wajib diisi."
         elif nilai["nik"] and (not nilai["nik"].isdigit() or len(nilai["nik"]) != 16):
             pesan = "NIK harus 16 digit angka (atau dikosongkan kalau belum ada)."
         elif not drive_io.siap():
-            app.logger.error("DRIVE_SCRIPT_URL / DRIVE_RAHASIA belum diisi - upload berkas /wi-basic ditolak")
-            pesan = "Penyimpanan berkas belum aktif. Silakan hubungi pengelola pelatihan."
+            app.logger.error("DRIVE_SCRIPT_URL / DRIVE_RAHASIA belum diisi - upload berkas form %s ditolak", kunci)
+            pesan = "Penyimpanan berkas belum aktif. Silakan hubungi pengelola."
         else:
             masalah = [m for m in (
-                _validasi_berkas(request.files.get(f), label, ok) for f, label, ok in BERKAS_WI_BASIC
+                _validasi_berkas(request.files.get(f), label, ok) for f, label, ok in BERKAS_FORM
             ) if m]
             if masalah:
                 pesan = " ".join(masalah) + " (Pilih ulang berkas yang bermasalah.)"
             else:
                 try:
                     data = dict(nilai)
-                    for field, label, _ok in BERKAS_WI_BASIC:
+                    for field, label, _ok in BERKAS_FORM:
                         data[field] = drive_io.upload_berkas(
-                            request.files[field], nilai["nama"], f"WI Basic - {label}")
-                    tambah_wi_basic(data)
-                    pesan = (f'Terima kasih, "{nilai["nama"]}" berhasil didaftarkan untuk TMT WI Basic. '
-                             "Berkas Anda sudah kami terima.")
+                            request.files[field], nilai["nama"], f'{k["awalan_berkas"]} - {label}')
+                    k["simpan"](data)
+                    pesan = k["pesan_sukses"].format(nama=nilai["nama"])
                     berhasil = True
                     nilai = {}
                 except (KonfigurasiBelumLengkap, berkas_umum.KonfigurasiBelumLengkap):
-                    app.logger.exception("Konfigurasi form WI Basic belum lengkap")
-                    pesan = "Belum bisa menyimpan data karena pengaturan sistem belum lengkap. Silakan hubungi pengelola pelatihan."
+                    app.logger.exception("Konfigurasi form %s belum lengkap", kunci)
+                    pesan = "Belum bisa menyimpan data karena pengaturan sistem belum lengkap. Silakan hubungi pengelola."
                 except berkas_umum.BerkasTidakValid as e:
                     pesan = str(e)
                 except Exception:
-                    app.logger.exception("Gagal menyimpan pendaftaran WI Basic")
+                    app.logger.exception("Gagal menyimpan form %s", kunci)
                     pesan = ("Gagal menyimpan data karena gangguan sementara - silakan coba lagi "
                              "(berkas perlu dipilih ulang).")
 
-    return render_template("wi_basic.html", pesan=pesan, berhasil=berhasil, nilai=nilai,
-                           syarat=SYARAT_WI_BASIC, berkas=BERKAS_WI_BASIC)
+    return render_template("form_berkas.html", pesan=pesan, berhasil=berhasil, nilai=nilai,
+                           berkas=BERKAS_FORM, judul_halaman=k["judul_halaman"],
+                           judul_kartu=k["judul_kartu"], pengantar=k["pengantar"],
+                           tombol=k["tombol"], syarat=k["syarat"], angkatan_wajib=k["angkatan_wajib"])
+
+
+@app.route("/wi-basic", methods=["GET", "POST"])
+def wi_basic():
+    return _form_berkas("wi_basic")
+
+
+@app.route("/anggota", methods=["GET", "POST"])
+def anggota():
+    return _form_berkas("anggota")
 
 
 @app.route("/admin/wi-basic")
@@ -237,6 +278,16 @@ def admin_wi_basic():
     except KonfigurasiBelumLengkap as e:
         return f"Setup Google Sheets belum selesai: {e}", 500
     return render_template("admin.html", rows=rows, kolom=KOLOM_WI_BASIC, sheet_url=sheet_url())
+
+
+@app.route("/admin/anggota")
+@perlu_login
+def admin_anggota():
+    try:
+        rows = baca_semua_anggota()
+    except KonfigurasiBelumLengkap as e:
+        return f"Setup Google Sheets belum selesai: {e}", 500
+    return render_template("admin.html", rows=rows, kolom=KOLOM_ANGGOTA, sheet_url=sheet_url())
 
 
 @app.route("/admin/kepuasan")

@@ -101,6 +101,18 @@ _KEY_KE_LABEL_WI_BASIC = {
     "ktp": "KTP", "pas_foto": "Pas Foto", "keterangan": "Keterangan",
 }
 
+# --- Tab "Data Anggota" (data anggota + lampiran dokumen; tanpa pilihan skema TMT) ---
+# Isiannya sama dengan WI Basic; bedanya Angkatan ditaruh tepat setelah Nama.
+WORKSHEET_ANGGOTA = "Data Anggota"
+KOLOM_ANGGOTA = [
+    "No", "Nama", "Angkatan", "NIK", "Tempat Lahir", "Tanggal Lahir", "Pendidikan Terakhir",
+    "Jurusan", "Pekerjaan", "No. HP", "Email",
+    "Pelatihan BLK yang Pernah Diikuti",
+    "Ijazah Terakhir", "CV", "Sertifikat BLKI", "KTP", "Pas Foto",
+    "Waktu Daftar", "Keterangan",
+]
+_KEY_KE_LABEL_ANGGOTA = _KEY_KE_LABEL_WI_BASIC
+
 
 class KonfigurasiBelumLengkap(Exception):
     pass
@@ -207,3 +219,15 @@ def tambah_wi_basic(data):
     """data: dict dengan key dari _KEY_KE_LABEL_WI_BASIC (berkas = link Drive)."""
     return _dengan_retry(lambda: _tambah_baris_generik(
         WORKSHEET_WI_BASIC, KOLOM_WI_BASIC, _KEY_KE_LABEL_WI_BASIC, data, "Waktu Daftar"))
+
+
+# --- API publik: Data Anggota ---
+
+def baca_semua_anggota():
+    return _dengan_retry(lambda: _baca_semua_generik(WORKSHEET_ANGGOTA, KOLOM_ANGGOTA))
+
+
+def tambah_anggota(data):
+    """data: dict dengan key dari _KEY_KE_LABEL_ANGGOTA (berkas = link Drive)."""
+    return _dengan_retry(lambda: _tambah_baris_generik(
+        WORKSHEET_ANGGOTA, KOLOM_ANGGOTA, _KEY_KE_LABEL_ANGGOTA, data, "Waktu Daftar"))
