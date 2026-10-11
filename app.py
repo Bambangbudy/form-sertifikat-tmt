@@ -25,10 +25,13 @@ from functools import wraps
 
 from flask import Flask, request, redirect, url_for, session, render_template
 
+import berkas_umum
 import config
+import drive_io
 from sheets_io import (
     baca_semua, tambah_pendaftar, sheet_url, KonfigurasiBelumLengkap, KOLOM,
     baca_semua_kepuasan, tambah_kepuasan, KOLOM_KEPUASAN,
+    baca_semua_wi_basic, tambah_wi_basic, KOLOM_WI_BASIC,
 )
 
 PERSYARATAN_TMT = {
@@ -43,8 +46,27 @@ PERSYARATAN_TMT = {
 }
 OPSI_TMT = list(PERSYARATAN_TMT.keys())
 
+# Form khusus /wi-basic. Isi SYARAT_WI_BASIC (teks) kalau persyaratannya sudah ada;
+# kosong = kotak persyaratan tidak ditampilkan.
+SYARAT_WI_BASIC = ""
+# (nama field, label di form & di nama file, ekstensi yang diizinkan) - semuanya wajib.
+BERKAS_WI_BASIC = [
+    ("ijazah", "Ijazah Terakhir", {"pdf", "jpg", "jpeg", "png"}),
+    ("cv", "CV", {"pdf"}),
+    ("sertifikat_blki", "Sertifikat BLKI", {"pdf", "jpg", "jpeg", "png"}),
+    ("ktp", "KTP", {"pdf", "jpg", "jpeg", "png"}),
+    ("pas_foto", "Pas Foto", {"jpg", "jpeg", "png"}),
+]
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("TMT_SECRET_KEY", "ganti-kalau-mau-di-hosting-" + os.urandom(8).hex())
+app.config["MAX_CONTENT_LENGTH"] = 18 * 1024 * 1024  # total satu permintaan, termasuk 5 berkas @ maks 3 MB
+
+
+@app.errorhandler(413)
+def terlalu_besar(_e):
+    return ("Ukuran total berkas terlalu besar (maksimal 18 MB per pendaftaran). "
+            "Kecilkan berkasnya lalu kirim ulang."), 413
 
 
 def perlu_login(fn):
@@ -139,6 +161,82 @@ def kepuasan():
 
     return render_template("kepuasan.html", pesan=pesan, berhasil=berhasil, nilai=nilai,
                            opsi_pelatihan=OPSI_TMT)
+
+
+def _validasi_berkas(file_storage, label, diizinkan):
+    """Return pesan error (str) atau None kalau berkas valid."""
+    if not file_storage or not file_storage.filename:
+        return f"{label} wajib dilampirkan."
+    if berkas_umum.ekstensi(file_storage) not in diizinkan:
+        return f"{label} harus berformat {', '.join(sorted(diizinkan)).upper()}."
+    file_storage.seek(0, os.SEEK_END)
+    ukuran = file_storage.tell()
+    file_storage.seek(0)
+    if ukuran == 0:
+        return f"{label} kosong."
+    if ukuran > config.MAX_UPLOAD_SIZE:
+        return f"{label} maksimal {config.MAX_UPLOAD_SIZE // (1024 * 1024)} MB."
+    return berkas_umum.periksa_isi(file_storage, label)
+
+
+@app.route("/wi-basic", methods=["GET", "POST"])
+def wi_basic():
+    pesan = ""
+    berhasil = False
+    nilai = {}
+
+    if request.method == "POST":
+        nilai = {k: request.form.get(k, "").strip() for k in (
+            "nama", "nik", "tempat_lahir", "tanggal_lahir", "pendidikan", "jurusan",
+            "angkatan", "pekerjaan", "no_hp", "email", "pelatihan_blk",
+        )}
+
+        if not nilai["nama"]:
+            pesan = "Nama wajib diisi."
+        elif nilai["nik"] and (not nilai["nik"].isdigit() or len(nilai["nik"]) != 16):
+            pesan = "NIK harus 16 digit angka (atau dikosongkan kalau belum ada)."
+        elif not drive_io.siap():
+            app.logger.error("DRIVE_SCRIPT_URL / DRIVE_RAHASIA belum diisi - upload berkas /wi-basic ditolak")
+            pesan = "Penyimpanan berkas belum aktif. Silakan hubungi pengelola pelatihan."
+        else:
+            masalah = [m for m in (
+                _validasi_berkas(request.files.get(f), label, ok) for f, label, ok in BERKAS_WI_BASIC
+            ) if m]
+            if masalah:
+                pesan = " ".join(masalah) + " (Pilih ulang berkas yang bermasalah.)"
+            else:
+                try:
+                    data = dict(nilai)
+                    for field, label, _ok in BERKAS_WI_BASIC:
+                        data[field] = drive_io.upload_berkas(
+                            request.files[field], nilai["nama"], f"WI Basic - {label}")
+                    tambah_wi_basic(data)
+                    pesan = (f'Terima kasih, "{nilai["nama"]}" berhasil didaftarkan untuk TMT WI Basic. '
+                             "Berkas Anda sudah kami terima.")
+                    berhasil = True
+                    nilai = {}
+                except (KonfigurasiBelumLengkap, berkas_umum.KonfigurasiBelumLengkap):
+                    app.logger.exception("Konfigurasi form WI Basic belum lengkap")
+                    pesan = "Belum bisa menyimpan data karena pengaturan sistem belum lengkap. Silakan hubungi pengelola pelatihan."
+                except berkas_umum.BerkasTidakValid as e:
+                    pesan = str(e)
+                except Exception:
+                    app.logger.exception("Gagal menyimpan pendaftaran WI Basic")
+                    pesan = ("Gagal menyimpan data karena gangguan sementara - silakan coba lagi "
+                             "(berkas perlu dipilih ulang).")
+
+    return render_template("wi_basic.html", pesan=pesan, berhasil=berhasil, nilai=nilai,
+                           syarat=SYARAT_WI_BASIC, berkas=BERKAS_WI_BASIC)
+
+
+@app.route("/admin/wi-basic")
+@perlu_login
+def admin_wi_basic():
+    try:
+        rows = baca_semua_wi_basic()
+    except KonfigurasiBelumLengkap as e:
+        return f"Setup Google Sheets belum selesai: {e}", 500
+    return render_template("admin.html", rows=rows, kolom=KOLOM_WI_BASIC, sheet_url=sheet_url())
 
 
 @app.route("/admin/kepuasan")

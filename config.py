@@ -17,3 +17,11 @@ GOOGLE_SHEET_ID = "1kfazgV0MBOAnNZ76VFkuGIC1ie3u21Ro0PlDNXvAULQ"
 # kalau tidak (jalan di komputer lokal) pakai file di folder proyek.
 _render_path = "/etc/secrets/service_account.json"
 GOOGLE_CREDENTIALS_FILE = _render_path if os.path.exists(_render_path) else "service_account.json"
+
+# --- Unggah berkas (form WI Basic) ---
+# Lewat jembatan Google Apps Script milik pemilik Drive (lihat drive_io.py).
+# Kedua nilai ini RAHASIA/khusus lingkungan: isi lewat environment variable di
+# Render, jangan ditulis di file ini.
+DRIVE_SCRIPT_URL = os.environ.get("DRIVE_SCRIPT_URL", "")
+DRIVE_RAHASIA = os.environ.get("DRIVE_RAHASIA", "")
+MAX_UPLOAD_SIZE = 3 * 1024 * 1024   # per berkas, sama dengan batas di pengecil gambar browser

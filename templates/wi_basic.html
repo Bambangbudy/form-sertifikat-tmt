@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Pendaftaran TMT WI Basic{% endblock %}
+{% block header_title %}Pendaftaran TMT WI Basic{% endblock %}
+{% block nav %}{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-top:0;">Nominatif Calon Peserta Pelatihan - TMT WI Basic</h2>
+  <p class="hint">Isi data diri dan lampirkan dokumen yang diminta. Semua lampiran wajib.</p>
+
+  {% if syarat %}
+  <div class="pesan" style="background:#eef5f7;border:1px solid #cfe0e6;color:#1f4e5f;">
+    <strong>Persyaratan:</strong> {{ syarat }}
+  </div>
+  {% endif %}
+
+  {% if pesan %}<div class="pesan {{ 'ok' if berhasil else 'error' }}">{{ pesan }}</div>{% endif %}
+
+  <form method="post" enctype="multipart/form-data">
+    <fieldset>
+      <legend>Data Pribadi</legend>
+      <label for="nama">Nama Lengkap *</label>
+      <input type="text" name="nama" id="nama" value="{{ nilai.nama or '' }}" required>
+
+      <label for="nik">NIK</label>
+      <input type="text" name="nik" id="nik" value="{{ nilai.nik or '' }}"
+             inputmode="numeric" pattern="[0-9]{16}" maxlength="16"
+             title="NIK terdiri dari 16 digit angka">
+      <p class="hint">16 digit sesuai KTP.</p>
+
+      <label for="tempat_lahir">Tempat Lahir</label>
+      <input type="text" name="tempat_lahir" id="tempat_lahir" value="{{ nilai.tempat_lahir or '' }}">
+
+      <label for="tanggal_lahir">Tanggal Lahir</label>
+      <input type="date" name="tanggal_lahir" id="tanggal_lahir" value="{{ nilai.tanggal_lahir or '' }}">
+    </fieldset>
+
+    <fieldset>
+      <legend>Pendidikan</legend>
+      <label for="pendidikan">Pendidikan Terakhir</label>
+      <select name="pendidikan" id="pendidikan">
+        <option value="">-- pilih --</option>
+        {% for opsi in ["SD", "SMP", "SMA/SMK", "D3", "S1", "S2", "S3", "Lainnya"] %}
+        <option value="{{ opsi }}" {{ "selected" if nilai.pendidikan == opsi else "" }}>{{ opsi }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="jurusan">Jurusan</label>
+      <input type="text" name="jurusan" id="jurusan" value="{{ nilai.jurusan or '' }}">
+
+      <label for="angkatan">Angkatan</label>
+      <input type="text" name="angkatan" id="angkatan" value="{{ nilai.angkatan or '' }}"
+             placeholder="contoh: 2018">
+    </fieldset>
+
+    <fieldset>
+      <legend>Pekerjaan &amp; Kontak</legend>
+      <label for="pekerjaan">Pekerjaan</label>
+      <input type="text" name="pekerjaan" id="pekerjaan" value="{{ nilai.pekerjaan or '' }}">
+
+      <label for="no_hp">Nomor HP</label>
+      <input type="tel" name="no_hp" id="no_hp" value="{{ nilai.no_hp or '' }}" placeholder="08xxxxxxxxxx">
+
+      <label for="email">Alamat Email</label>
+      <input type="email" name="email" id="email" value="{{ nilai.email or '' }}">
+
+      <label for="pelatihan_blk">Pelatihan yang Pernah Diikuti di BLK</label>
+      <input type="text" name="pelatihan_blk" id="pelatihan_blk" value="{{ nilai.pelatihan_blk or '' }}"
+             placeholder="Sebutkan nama pelatihannya, atau tulis &quot;belum pernah&quot;">
+    </fieldset>
+
+    <fieldset>
+      <legend>Lampiran Dokumen *</legend>
+      <p class="hint" style="margin-top:0;">Format PDF/JPG/PNG, maksimal 3 MB per berkas (foto dan scan dikecilkan
+        otomatis). Dokumen disimpan privat dan hanya dilihat pengelola pelatihan.</p>
+      {% for field, label, ok in berkas %}
+      <label for="{{ field }}">{{ label }} *</label>
+      <input type="file" name="{{ field }}" id="{{ field }}"
+             accept="{% for e in ok|sort %}.{{ e }}{% if not loop.last %},{% endif %}{% endfor %}" required>
+      <p class="hint" style="margin:.2rem 0 0;">Format: {{ ok|sort|join(', ')|upper }}</p>
+      {% endfor %}
+    </fieldset>
+
+    <button class="btn" type="submit">Kirim Pendaftaran</button>
+  </form>
+</div>
+<script>
+/* Pengecil gambar di perangkat pengguna: foto dan scan dikecilkan sebelum dikirim.
+   Manfaat: hemat kuota Drive, lolos batas 3 MB server, dan metadata EXIF (mis. lokasi GPS) ikut terbuang.
+   Hanya JPG/PNG; PDF tidak diubah (tapi ukurannya tetap dicek: maks 3 MB).
+   Peramban lama tanpa Canvas/DataTransfer: berkas dikirim apa adanya. */
+(function () {
+  'use strict';
+  var form = document.querySelector('form[enctype="multipart/form-data"]');
+  if (!form) return;
+  var bisaKecilkan = !!(window.File && window.DataTransfer && window.HTMLCanvasElement && HTMLCanvasElement.prototype.toBlob);
+
+  var PROFIL = {
+    ijazah: { sisi: 2000, mutu: 0.8 },
+    sertifikat_blki: { sisi: 2000, mutu: 0.8 },
+    ktp: { sisi: 2000, mutu: 0.8 },
+    pas_foto: { sisi: 1280, mutu: 0.82 }
+  };
+  var BATAS = 3 * 1024 * 1024;   // sama dengan batas di server
+  var MINIMAL = 150 * 1024;      // berkas lebih kecil dari ini dibiarkan apa adanya
+  var tombol = form.querySelector('button[type="submit"]');
+  var sibuk = 0;
+
+  function ukuran(b) {
+    return b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
+  }
+
+  function info(input, teks) {
+    var el = input.parentNode.querySelector('[data-kompres-info="' + input.name + '"]');
+    if (!el) {
+      el = document.createElement('p');
+      el.className = 'hint';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      el.setAttribute('data-kompres-info', input.name);
+      input.insertAdjacentElement('afterend', el);
+    }
+    el.textContent = teks || '';
+  }
+
+  /* Browser menolak kirim formulir (dengan pesan) kalau berkas yang terpilih masih > 3 MB. */
+  function periksa(input) {
+    var f = input.files && input.files[0];
+    input.setCustomValidity(f && f.size > BATAS ? 'Ukuran berkas melebihi 3 MB. Kecilkan dulu.' : '');
+  }
+
+  function atur(delta) {
+    sibuk += delta;
+    if (!tombol) return;
+    tombol.disabled = sibuk > 0;
+    if (sibuk > 0) {
+      if (!tombol.hasAttribute('data-teks')) tombol.setAttribute('data-teks', tombol.textContent);
+      tombol.textContent = 'Memproses gambar…';
+    } else if (tombol.hasAttribute('data-teks')) {
+      tombol.textContent = tombol.getAttribute('data-teks');
+      tombol.removeAttribute('data-teks');
+    }
+  }
+
+  function dariElemen(file) {
+    return new Promise(function (ok, gagal) {
+      var u = URL.createObjectURL(file), im = new Image();
+      im.onload = function () {
+        ok({ src: im, w: im.naturalWidth, h: im.naturalHeight, tutup: function () { URL.revokeObjectURL(u); } });
+      };
+      im.onerror = function () { URL.revokeObjectURL(u); gagal(new Error('gambar tidak terbaca')); };
+      im.src = u;
+    });
+  }
+
+  function muat(file) {
+    if (!window.createImageBitmap) return dariElemen(file);
+    return createImageBitmap(file, { imageOrientation: 'from-image' }).then(function (bm) {
+      return { src: bm, w: bm.width, h: bm.height, tutup: function () { if (bm.close) bm.close(); } };
+    }, function () { return dariElemen(file); });
+  }
+
+  function sandikan(g, sisi, mutu) {
+    var skala = Math.min(1, sisi / Math.max(g.w, g.h));
+    var w = Math.max(1, Math.round(g.w * skala)), h = Math.max(1, Math.round(g.h * skala));
+    var k = document.createElement('canvas');
+    k.width = w;
+    k.height = h;
+    var c = k.getContext('2d');
+    if (!c) return Promise.reject(new Error('canvas tidak tersedia'));
+    c.fillStyle = '#ffffff';              // PNG transparan tidak berubah menjadi hitam
+    c.fillRect(0, 0, w, h);
+    c.imageSmoothingEnabled = true;
+    c.imageSmoothingQuality = 'high';
+    c.drawImage(g.src, 0, 0, w, h);
+    return new Promise(function (ok, gagal) {
+      k.toBlob(function (b) { if (b) ok(b); else gagal(new Error('gagal menyandikan')); }, 'image/jpeg', mutu);
+    });
+  }
+
+  function kecilkan(file, profil) {
+    return muat(file).then(function (g) {
+      var langkah = [[profil.sisi, profil.mutu], [Math.round(profil.sisi * 0.75), 0.7], [Math.round(profil.sisi * 0.55), 0.6]];
+      var i = 0;
+      function coba() {
+        return sandikan(g, langkah[i][0], langkah[i][1]).then(function (b) {
+          if (b.size > BATAS && i < langkah.length - 1) { i++; return coba(); }
+          return b;
+        });
+      }
+      return coba().then(function (b) { g.tutup(); return b; }, function (e) { g.tutup(); throw e; });
+    });
+  }
+
+  function proses(input) {
+    var profil = PROFIL[input.name];
+    var file = input.files && input.files[0];
+    input.__nomor = (input.__nomor || 0) + 1;
+    var nomor = input.__nomor;
+    info(input, '');
+    periksa(input);
+    if (!file) return;
+    var gambar = /^image\/(jpeg|png)$/i.test(file.type || '') || /\.(jpe?g|png)$/i.test(file.name || '');
+    if (!gambar || !profil || !bisaKecilkan) {
+      if (file.size > BATAS) info(input, 'Ukuran ' + ukuran(file.size) + ' melebihi 3 MB. Kecilkan atau kompres dulu berkasnya.');
+      return;
+    }
+    if (file.size < MINIMAL) return;
+    atur(1);
+    info(input, 'Mengecilkan gambar…');
+    kecilkan(file, profil).then(function (blob) {
+      if (input.__nomor !== nomor) return;                               // pilihan sudah diganti selagi diproses
+      if (blob.size >= file.size && file.size <= BATAS) { info(input, ''); return; }   // sudah cukup kecil: pakai aslinya
+      var nama = (file.name || 'gambar').replace(/\.[^.]*$/, '') + '.jpg';
+      var dt = new DataTransfer();
+      dt.items.add(new File([blob], nama, { type: 'image/jpeg', lastModified: Date.now() }));
+      input.files = dt.files;
+      info(input, 'Gambar dikecilkan otomatis: ' + ukuran(file.size) + ' → ' + ukuran(blob.size) + '.');
+    }).catch(function () {
+      if (input.__nomor !== nomor) return;
+      info(input, file.size > BATAS
+        ? 'Gambar tidak bisa dikecilkan di perangkat ini dan melebihi 3 MB. Gunakan gambar yang lebih kecil.'
+        : 'Gambar dikirim apa adanya (tidak bisa dikecilkan di perangkat ini).');
+    }).then(function () { periksa(input); atur(-1); });
+  }
+
+  Array.prototype.forEach.call(form.querySelectorAll('input[type="file"]'), function (input) {
+    input.addEventListener('change', function () { proses(input); });
+  });
+  form.addEventListener('submit', function (e) { if (sibuk > 0) e.preventDefault(); });
+})();
+</script>
+{% endblock %}

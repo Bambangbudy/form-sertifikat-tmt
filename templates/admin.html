@@ -3,6 +3,7 @@
 {% block main_class %}wrap-lebar{% endblock %}
 {% block nav %}
   <a href="{{ url_for('admin') }}">Data Pendaftaran</a>
+  <a href="{{ url_for('admin_wi_basic') }}">Data WI Basic</a>
   <a href="{{ url_for('admin_kepuasan') }}">Data Kepuasan</a>
   <a href="{{ sheet_url }}" target="_blank" rel="noopener">Buka Google Sheet</a>
   <a href="{{ url_for('logout') }}">Logout</a>
@@ -19,7 +20,7 @@
     </thead>
     <tbody>
       {% for r in rows %}
-      <tr>{% for k in kolom %}<td>{{ r.get(k, "") or "-" }}</td>{% endfor %}</tr>
+      <tr>{% for k in kolom %}{% set v = r.get(k, "") %}<td>{% if v is string and v.startswith("https://drive.google.com/") %}<a href="{{ v }}" target="_blank" rel="noopener noreferrer">Lihat</a>{% else %}{{ v or "-" }}{% endif %}</td>{% endfor %}</tr>
       {% endfor %}
     </tbody>
   </table>

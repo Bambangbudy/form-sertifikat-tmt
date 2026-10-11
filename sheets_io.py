@@ -81,6 +81,27 @@ _KEY_KE_LABEL_KEPUASAN = {
 }
 
 
+# --- Tab "WI Basic" (pendaftaran khusus TMT WI Basic, dengan lampiran dokumen) ---
+# Kolom lampiran berisi LINK berkas di Google Drive pemilik (lihat drive_io.py).
+WORKSHEET_WI_BASIC = "WI Basic"
+KOLOM_WI_BASIC = [
+    "No", "Nama", "NIK", "Tempat Lahir", "Tanggal Lahir", "Pendidikan Terakhir",
+    "Jurusan", "Angkatan", "Pekerjaan", "No. HP", "Email",
+    "Pelatihan BLK yang Pernah Diikuti",
+    "Ijazah Terakhir", "CV", "Sertifikat BLKI", "KTP", "Pas Foto",
+    "Waktu Daftar", "Keterangan",
+]
+_KEY_KE_LABEL_WI_BASIC = {
+    "nama": "Nama", "nik": "NIK", "tempat_lahir": "Tempat Lahir",
+    "tanggal_lahir": "Tanggal Lahir", "pendidikan": "Pendidikan Terakhir",
+    "jurusan": "Jurusan", "angkatan": "Angkatan", "pekerjaan": "Pekerjaan",
+    "no_hp": "No. HP", "email": "Email",
+    "pelatihan_blk": "Pelatihan BLK yang Pernah Diikuti",
+    "ijazah": "Ijazah Terakhir", "cv": "CV", "sertifikat_blki": "Sertifikat BLKI",
+    "ktp": "KTP", "pas_foto": "Pas Foto", "keterangan": "Keterangan",
+}
+
+
 class KonfigurasiBelumLengkap(Exception):
     pass
 
@@ -130,7 +151,9 @@ def sheet_url():
 def _baca_semua_generik(nama_tab, kolom):
     with _lock:
         ws = _worksheet(nama_tab, kolom)
-        records = ws.get_all_records()
+        # numericise_ignore=['all']: biarkan semua sel sebagai teks. Kalau tidak, gspread
+        # mengubah "081234567890" jadi angka 81234567890 (nol di depan hilang) di halaman admin.
+        records = ws.get_all_records(numericise_ignore=["all"])
     return [r for r in records if str(r.get("Nama", "")).strip()]
 
 
@@ -172,3 +195,15 @@ def tambah_kepuasan(data):
     """data: dict dengan key dari _KEY_KE_LABEL_KEPUASAN."""
     return _dengan_retry(lambda: _tambah_baris_generik(
         WORKSHEET_KEPUASAN, KOLOM_KEPUASAN, _KEY_KE_LABEL_KEPUASAN, data, "Waktu Submit"))
+
+
+# --- API publik: Pendaftaran TMT WI Basic ---
+
+def baca_semua_wi_basic():
+    return _dengan_retry(lambda: _baca_semua_generik(WORKSHEET_WI_BASIC, KOLOM_WI_BASIC))
+
+
+def tambah_wi_basic(data):
+    """data: dict dengan key dari _KEY_KE_LABEL_WI_BASIC (berkas = link Drive)."""
+    return _dengan_retry(lambda: _tambah_baris_generik(
+        WORKSHEET_WI_BASIC, KOLOM_WI_BASIC, _KEY_KE_LABEL_WI_BASIC, data, "Waktu Daftar"))
